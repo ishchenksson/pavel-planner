@@ -25,7 +25,8 @@
         Дальше мы добавим проекты, задачи, сферы, цвета и бота.
       </div>
       <button class="btn" id="btn">Проверить Telegram WebApp</button>
-      <button class="btn" id="create">Создать тестовую задачу</button>
+      <button class="btn" id="create">Создать задачу</button>
+      <div id="createBox" style="margin-top:12px;"></div>
       <div class="small" id="info"></div>
       <div id="tasks" style="margin-top:12px;"></div>
     </div>
@@ -35,6 +36,7 @@
   const btn = document.getElementById("btn");
   const createBtn = document.getElementById("create");
   const tasksEl = document.getElementById("tasks");
+  const createBox = document.getElementById("createBox");
 
   let userId = null;
 
@@ -83,6 +85,123 @@ function pickPraise() {
   function show(msg) {
     info.textContent = msg;
   }
+const SPHERES = ["Работа","Деньги","Тело","Отношения","Дом","Развитие","Творчество","Социум","Отдых","Ценности"];
+const DIFFS = [
+  { n: 1, label: "Голубой" },
+  { n: 2, label: "Зелёный" },
+  { n: 3, label: "Жёлтый" },
+  { n: 4, label: "Оранжевый" },
+  { n: 5, label: "Красный" },
+  { n: 6, label: "Фиолетовый" }
+];
+
+let draft = { sphere: null, difficulty: null, text: "", importance: null };
+
+function renderCreateUI() {
+  if (!userId) {
+    createBox.innerHTML = `<div class="small">Сначала нажми «Проверить Telegram WebApp».</div>`;
+    return;
+  }
+
+  const sphereBtns = SPHERES.map(s => `
+    <button data-sphere="${s}" class="sbtn" style="padding:10px 12px;border:0;border-radius:14px;background:${draft.sphere===s?"#d7f3e6":"#eef7ff"};font-weight:700;">
+      ${s}
+    </button>
+  `).join("");
+
+  const diffBtns = DIFFS.map(d => `
+    <button data-diff="${d.n}" class="dbtn" style="padding:10px 12px;border:0;border-radius:14px;background:${draft.difficulty===d.n?"#d7f3e6":"#ffffff"};box-shadow:0 6px 18px rgba(0,0,0,0.06);font-weight:800;">
+      ${d.n}
+    </button>
+  `).join("");
+
+  const impBtns = [1,2,3,4].map(n => `
+    <button data-imp="${n}" class="ibtn" style="padding:10px 12px;border:0;border-radius:14px;background:${draft.importance===n?"#d7f3e6":"#ffffff"};box-shadow:0 6px 18px rgba(0,0,0,0.06);font-weight:800;color:#0f4a2d;">
+      ${n}
+    </button>
+  `).join("");
+
+  createBox.innerHTML = `
+    <div class="card" style="margin-top:12px;">
+      <div class="h1">Новая задача</div>
+
+      <div class="muted" style="margin-top:8px;">1) Сфера</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${sphereBtns}</div>
+
+      <div class="muted" style="margin-top:12px;">2) Сложность (1–6)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${diffBtns}</div>
+
+      <div class="muted" style="margin-top:12px;">3) Текст</div>
+      <input id="ttext" placeholder="Например: оплатить счёт" value="${draft.text || ""}"
+        style="width:100%;margin-top:8px;padding:12px 12px;border-radius:14px;border:1px solid rgba(0,0,0,0.08);font-size:15px;" />
+
+      <div class="muted" style="margin-top:12px;">4) Важность (1–4)</div>
+      <div style="display:flex;gap:8px;margin-top:8px;">${impBtns}</div>
+
+      <button id="saveTask" class="btn" style="margin-top:12px;">Сохранить (записать)</button>
+      <button id="takeTask" class="btn" style="margin-top:8px;">Взять в работу</button>
+
+      <div class="small" style="margin-top:8px;opacity:.75;">
+        Сначала «записать», потом «взять в работу». Даты добавим следующим шагом.
+      </div>
+    </div>
+  `;
+
+  // handlers
+  createBox.querySelectorAll(".sbtn").forEach(b => b.addEventListener("click", () => {
+    draft.sphere = b.dataset.sphere;
+    renderCreateUI();
+  }));
+
+  createBox.querySelectorAll(".dbtn").forEach(b => b.addEventListener("click", () => {
+    draft.difficulty = Number(b.dataset.diff);
+    renderCreateUI();
+  }));
+
+  createBox.querySelectorAll(".ibtn").forEach(b => b.addEventListener("click", () => {
+    draft.importance = Number(b.dataset.imp);
+    renderCreateUI();
+  }));
+
+  const ttext = createBox.querySelector("#ttext");
+  ttext.addEventListener("input", () => {
+    draft.text = ttext.value;
+  });
+
+  createBox.querySelector("#saveTask").addEventListener("click", async () => {
+    if (!draft.sphere || !draft.difficulty || !draft.importance || !draft.text.trim()) {
+      show("Заполни: сфера, сложность, текст, важность.");
+      return;
+    }
+    const r = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        sphere: draft.sphere,
+        difficulty: draft.difficulty,
+        importance: draft.importance,
+        text: draft.text.trim()
+      })
+    });
+    const data = await r.json();
+    if (data.error) { show("Ошибка: " + data.error); return; }
+    show("Записал ✅ Теперь можешь взять в работу.");
+    draft._lastCreatedId = data.task.id;
+  });
+
+  createBox.querySelector("#takeTask").addEventListener("click", async () => {
+    const id = draft._lastCreatedId;
+    if (!id) { show("Сначала нажми «Сохранить (записать)»."); return; }
+    await fetch(`/api/tasks/${id}/take`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
+    });
+    toast("В работе.");
+    await renderTasks();
+  });
+}
 
   function confettiLite() {
     // Очень лёгкий "салют" без библиотек
@@ -279,6 +398,7 @@ function pickPraise() {
     userId = String(user.id);
     show(`Telegram WebApp подключён ✅ Привет, ${user.first_name}! (id: ${userId})`);
     await renderTasks();
+    renderCreateUI();
   });
 
   createBtn.addEventListener("click", async () => {
