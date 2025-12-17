@@ -39,23 +39,46 @@
   let userId = null;
 
   const praise = [
-    "Чётко.",
-    "Красиво сделал.",
-    "Вот это ход.",
-    "Уверенно.",
-    "Засчитано с бонусом.",
-    "Опасно красиво."
-  ];
-  let lastPraise = null;
+  "Чётко.",
+  "Красиво сделал.",
+  "Вот это ход.",
+  "Уверенно.",
+  "Засчитано с бонусом.",
+  "Опасно красиво.",
+  "Сильный шаг.",
+  "Ты на уровне.",
+  "Это прогресс.",
+  "Ровно в цель.",
+  "Без суеты.",
+  "Хорош.",
+  "Очень хорошо.",
+  "Это было вкусно.",
+  "Да. Вот так.",
+  "Сделано — и точка.",
+  "Ты растёшь.",
+  "Смело. И правильно.",
+  "Это уровень."
+];
+  let lastPraises = [];
 
-  function pickPraise() {
-    let p = praise[Math.floor(Math.random() * praise.length)];
-    if (p === lastPraise && praise.length > 1) {
-      p = praise[(praise.indexOf(p) + 1) % praise.length];
-    }
-    lastPraise = p;
-    return p;
+function pickPraise() {
+  if (praise.length <= 3) {
+    return praise[Math.floor(Math.random() * praise.length)];
   }
+
+  let p;
+  do {
+    p = praise[Math.floor(Math.random() * praise.length)];
+  } while (lastPraises.includes(p));
+
+  lastPraises.push(p);
+  if (lastPraises.length > 3) {
+    lastPraises.shift();
+  }
+
+  return p;
+}
+
 
   function show(msg) {
     info.textContent = msg;
@@ -63,7 +86,7 @@
 
   function confettiLite() {
     // Очень лёгкий "салют" без библиотек
-    const n = 18;
+    const n = 40;
     for (let i = 0; i < n; i++) {
       const dot = document.createElement("div");
       dot.style.position = "fixed";
@@ -84,7 +107,7 @@
           `translate(${(Math.random() * 160 - 80)}px, ${(Math.random() * 220 - 120)}px)`;
       });
 
-      setTimeout(() => dot.remove(), 750);
+      setTimeout(() => dot.remove(), 1400);
     }
   }
 
