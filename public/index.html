@@ -25,18 +25,62 @@
         Дальше мы добавим проекты, задачи, сферы, цвета и бота.
       </div>
       <button class="btn" id="btn">Проверить Telegram WebApp</button>
+      <button class="btn" id="create">Создать тестовую задачу</button>
       <div class="small" id="info"></div>
     </div>
   </div>
   <script>
   const info = document.getElementById("info");
   const btn = document.getElementById("btn");
+  const createBtn = document.getElementById("create");
+
+  let userId = null;
 
   function show(msg) {
     info.textContent = msg;
   }
 
-  btn.addEventListener("click", () => {
+  async function apiGetTasks() {
+    const r = await fetch(`/api/tasks?userId=${encodeURIComponent(userId)}`);
+    const data = await r.json();
+    return data.tasks || [];
+  }
+
+  async function apiCreateTask() {
+    const body = {
+      userId,
+      sphere: "Деньги",
+      difficulty: 3,
+      importance: 1,
+      text: "Тест: оплатить счёт"
+    };
+    const r = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+
+  async function apiTakeFirstRecorded() {
+    // Временно: мы создаём задачу и сразу берём её в работу,
+    // чтобы увидеть её в списке (так проще проверить).
+    const created = await apiCreateTask();
+    const task = created.task;
+    await fetch(`/api/tasks/${task.id}/take`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
+    });
+  }
+
+  async function renderTasks() {
+    const tasks = await apiGetTasks();
+    const lines = tasks.map(t => `${t.importance} | ${t.sphere} | сложн.${t.difficulty} | ${t.text}`);
+    show(lines.length ? `Задачи в работе:\n${lines.join("\n")}` : "Пока нет задач в работе.");
+  }
+
+  btn.addEventListener("click", async () => {
     const tg = window.Telegram && window.Telegram.WebApp;
     if (!tg) {
       show("Telegram WebApp не обнаружен. Открой приложение через кнопку в чате с ботом.");
@@ -44,14 +88,26 @@
     }
 
     tg.ready();
-
     const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (user) {
-      show(`Telegram WebApp подключён ✅ Привет, ${user.first_name}! (id: ${user.id})`);
-    } else {
-      show("Telegram WebApp подключён ✅ (Пользователь не передан — это редко, но не критично на этом этапе.)");
+    if (!user) {
+      show("Telegram WebApp подключён ✅ Но пользователь не передан.");
+      return;
     }
+
+    userId = String(user.id);
+    show(`Telegram WebApp подключён ✅ Привет, ${user.first_name}! (id: ${userId})`);
+    await renderTasks();
+  });
+
+  createBtn.addEventListener("click", async () => {
+    if (!userId) {
+      show("Сначала нажми «Проверить Telegram WebApp».");
+      return;
+    }
+    await apiTakeFirstRecorded();
+    await renderTasks();
   });
 </script>
+
 </body>
 </html>
