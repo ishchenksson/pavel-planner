@@ -407,16 +407,9 @@ if (view === "in_work") {
   right.style.background = "#d7f3e6";
   right.style.color = "#0f4a2d";
 
-  right.onclick = async () => {
-    await fetch(`/api/tasks/${t.id}/take`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
-    });
-    toast("В работе.");
-    view = "in_work";
-    await renderTasks();
-  };
+ right.onclick = async () => {
+  await takeWithSchedule(t.id);
+};
 }
 
 
