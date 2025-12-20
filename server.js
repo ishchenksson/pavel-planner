@@ -21,10 +21,13 @@ app.get("/api/tasks", (req, res) => {
   const userId = String(req.query.userId || "");
   if (!userId) return res.status(400).json({ error: "userId required" });
 
+  const status = String(req.query.status || "in_work"); // in_work | recorded
   const tasks = db[userId] || [];
-  const active = tasks.filter(t => t.status === "in_work");
-  res.json({ tasks: active });
+  const filtered = tasks.filter(t => t.status === status);
+
+  res.json({ tasks: filtered });
 });
+;
 
 // Создать задачу (по умолчанию "записана")
 app.post("/api/tasks", (req, res) => {
