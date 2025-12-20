@@ -200,6 +200,7 @@ function renderCreateUI() {
       body: JSON.stringify({ userId, dueDate: null, dueTime: null })
     });
     toast("В работе.");
+    view = "in_work";
     await renderTasks();
   });
 }
