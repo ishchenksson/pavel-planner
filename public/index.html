@@ -39,6 +39,7 @@
   const createBox = document.getElementById("createBox");
 
   let userId = null;
+  let view = "in_work"; // in_work | recorded
 
   const praise = [
   "Чётко.",
@@ -254,10 +255,10 @@ function renderCreateUI() {
   }
 
   async function apiGetTasks() {
-    const r = await fetch(`/api/tasks?userId=${encodeURIComponent(userId)}`);
-    const data = await r.json();
-    return data.tasks || [];
-  }
+  const r = await fetch(`/api/tasks?userId=${encodeURIComponent(userId)}&status=${encodeURIComponent(view)}`);
+  const data = await r.json();
+  return data.tasks || [];
+}
 
   async function apiCreateAndTakeTask() {
     const body = {
@@ -350,31 +351,59 @@ function renderCreateUI() {
     mid.appendChild(top);
     mid.appendChild(text);
 
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.style.width = "22px";
-    box.style.height = "22px";
+  let right;
+if (view === "in_work") {
+  right = document.createElement("input");
+  right.type = "checkbox";
+  right.style.width = "22px";
+  right.style.height = "22px";
 
-    box.addEventListener("change", async () => {
-      if (!box.checked) return;
-      // похвала + салют
-      toast(pickPraise());
-      confettiLite();
+  right.addEventListener("change", async () => {
+    if (!right.checked) return;
+    toast(pickPraise());
+    confettiLite();
+    await apiDone(t.id);
+    await renderTasks();
+  });
+} else {
+  right = document.createElement("button");
+  right.textContent = "В работу";
+  right.style.border = "0";
+  right.style.borderRadius = "12px";
+  right.style.padding = "10px 12px";
+  right.style.fontWeight = "800";
+  right.style.background = "#d7f3e6";
+  right.style.color = "#0f4a2d";
 
-      // выполнить и удалить
-      await apiDone(t.id);
-      await renderTasks();
+  right.onclick = async () => {
+    await fetch(`/api/tasks/${t.id}/take`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
     });
+    toast("В работе.");
+    view = "in_work";
+    await renderTasks();
+  };
+}
+
 
     row.appendChild(marker);
     row.appendChild(mid);
-    row.appendChild(box);
+    row.appendChild(right);
 
     return row;
   }
 
   async function renderTasks() {
-    tasksEl.innerHTML = "";
+    tasksEl.innerHTML = `
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button id="vw1" class="btn" style="margin:0;background:${view==="in_work"?"#d7f3e6":"#eef7ff"};">В работе</button>
+    <button id="vw2" class="btn" style="margin:0;background:${view==="recorded"?"#d7f3e6":"#eef7ff"};">Записанные</button>
+  </div>
+`;
+document.getElementById("vw1").onclick = async () => { view = "in_work"; await renderTasks(); };
+document.getElementById("vw2").onclick = async () => { view = "recorded"; await renderTasks(); };
     const tasks = await apiGetTasks();
     if (!tasks.length) {
       tasksEl.innerHTML = `<div class="small">Пока нет задач в работе.</div>`;
