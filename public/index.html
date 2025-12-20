@@ -471,8 +471,23 @@ async function takeWithSchedule(taskId) {
     text.style.marginTop = "2px";
     text.style.fontSize = "15px";
 
-    mid.appendChild(top);
-    mid.appendChild(text);
+    const when = document.createElement("div");
+when.style.marginTop = "4px";
+when.style.fontSize = "12px";
+when.style.opacity = "0.7";
+
+if (t.dueDate && t.dueTime) {
+  when.textContent = `⏰ ${t.dueDate} ${t.dueTime}`;
+} else if (t.dueDate) {
+  when.textContent = `📅 ${t.dueDate}`;
+} else {
+  when.textContent = "";
+}
+
+mid.appendChild(top);
+mid.appendChild(text);
+mid.appendChild(when);
+
 
   let right;
 if (view === "in_work") {
