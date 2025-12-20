@@ -192,16 +192,14 @@ function renderCreateUI() {
   });
 
   createBox.querySelector("#takeTask").addEventListener("click", async () => {
-    const id = draft._lastCreatedId;
-    if (!id) { show("Сначала нажми «Сохранить (записать)»."); return; }
-    await fetch(`/api/tasks/${id}/take`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
-    });
-    toast("В работе.");
-    view = "in_work";
-    await renderTasks();
+  const id = draft._lastCreatedId;
+  if (!id) {
+    show("Сначала нажми «Сохранить (записать)».");
+    return;
+  }
+  await takeWithSchedule(id);
+});
+
   });
 }
 
@@ -305,6 +303,38 @@ function renderCreateUI() {
     return map[d] || "#cfe9dd";
   }
 
+    async function takeWithSchedule(taskId) {
+  const mode = prompt(
+    "Взять в работу:\n1 — без даты\n2 — с датой\n3 — с датой и временем\n\nВведи 1, 2 или 3:",
+    "1"
+  );
+
+  if (mode === null) return;
+
+  let dueDate = null;
+  let dueTime = null;
+
+  if (mode === "2" || mode === "3") {
+    dueDate = prompt("Введи дату в формате ГГГГ-ММ-ДД:");
+    if (!dueDate) return;
+  }
+
+  if (mode === "3") {
+    dueTime = prompt("Введи время в формате ЧЧ:ММ:");
+    if (!dueTime) return;
+  }
+
+  await fetch(`/api/tasks/${taskId}/take`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, dueDate, dueTime })
+  });
+
+  toast("В работе.");
+  view = "in_work";
+  await renderTasks();
+}
+
   function renderTaskRow(t) {
     const row = document.createElement("div");
     row.style.display = "flex";
@@ -376,16 +406,9 @@ if (view === "in_work") {
   right.style.background = "#d7f3e6";
   right.style.color = "#0f4a2d";
 
-  right.onclick = async () => {
-    await fetch(`/api/tasks/${t.id}/take`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
-    });
-    toast("В работе.");
-    view = "in_work";
-    await renderTasks();
-  };
+ right.onclick = async () => {
+  await takeWithSchedule(t.id);
+};
 }
 
 
