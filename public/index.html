@@ -254,21 +254,119 @@ function renderCreateUI() {
       setTimeout(() => t.remove(), 250);
     }, 2200);
   }
+function openTakeDialog() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.left = "0";
+    overlay.style.top = "0";
+    overlay.style.right = "0";
+    overlay.style.bottom = "0";
+    overlay.style.background = "rgba(0,0,0,0.35)";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.padding = "16px";
+
+    const box = document.createElement("div");
+    box.style.width = "100%";
+    box.style.maxWidth = "420px";
+    box.style.background = "#ffffff";
+    box.style.borderRadius = "16px";
+    box.style.boxShadow = "0 20px 60px rgba(0,0,0,0.18)";
+    box.style.padding = "14px";
+
+    box.innerHTML = `
+      <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Взять в работу</div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button id="m1" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#d7f3e6;color:#0f4a2d;">Без даты</button>
+        <button id="m2" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#eef7ff;">С датой</button>
+        <button id="m3" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#eef7ff;">Дата+время</button>
+      </div>
+
+      <div id="dateWrap" style="display:none;margin-top:8px;">
+        <div style="font-size:12px;opacity:.75;margin-bottom:6px;">Дата</div>
+        <input id="dueDate" type="date" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,0,0,0.12);" />
+      </div>
+
+      <div id="timeWrap" style="display:none;margin-top:10px;">
+        <div style="font-size:12px;opacity:.75;margin-bottom:6px;">Время</div>
+        <input id="dueTime" type="time" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,0,0,0.12);" />
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button id="cancel" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#f3f6fb;">Отмена</button>
+        <button id="ok" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#d7f3e6;color:#0f4a2d;">Готово</button>
+      </div>
+    `;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    let mode = "1"; // 1=без даты, 2=дата, 3=дата+время
+    const dateWrap = box.querySelector("#dateWrap");
+    const timeWrap = box.querySelector("#timeWrap");
+
+    function setMode(m) {
+      mode = m;
+      box.querySelector("#m1").style.background = (m==="1") ? "#d7f3e6" : "#eef7ff";
+      box.querySelector("#m2").style.background = (m==="2") ? "#d7f3e6" : "#eef7ff";
+      box.querySelector("#m3").style.background = (m==="3") ? "#d7f3e6" : "#eef7ff";
+
+      dateWrap.style.display = (m==="2" || m==="3") ? "block" : "none";
+      timeWrap.style.display = (m==="3") ? "block" : "none";
+    }
+
+    box.querySelector("#m1").onclick = () => setMode("1");
+    box.querySelector("#m2").onclick = () => setMode("2");
+    box.querySelector("#m3").onclick = () => setMode("3");
+    setMode("1");
+
+    box.querySelector("#cancel").onclick = () => {
+      overlay.remove();
+      resolve(null);
+    };
+
+    box.querySelector("#ok").onclick = () => {
+      const dueDate = box.querySelector("#dueDate").value || null;
+      const dueTime = box.querySelector("#dueTime").value || null;
+
+      if ((mode === "2" || mode === "3") && !dueDate) {
+        // простая защита
+        box.querySelector("#dueDate").focus();
+        return;
+      }
+      if (mode === "3" && !dueTime) {
+        box.querySelector("#dueTime").focus();
+        return;
+      }
+
+      overlay.remove();
+      resolve({
+        dueDate: (mode === "1") ? null : dueDate,
+        dueTime: (mode === "3") ? dueTime : null
+      });
+    };
+  });
+}
+
 async function takeWithSchedule(taskId) {
-  const mode = prompt(
-    "Взять в работу:\n1 — без даты\n2 — с датой\n3 — с датой и временем\n\nВведи 1, 2 или 3:",
-    "1"
-  );
+  const picked = await openTakeDialog();
+  if (!picked) return;
 
-  if (mode === null) return;
+  await fetch(`/api/tasks/${taskId}/take`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, dueDate: picked.dueDate, dueTime: picked.dueTime })
+  });
 
-  let dueDate = null;
-  let dueTime = null;
+  toast("В работе.");
+  view = "in_work";
+  await renderTasks();
+}
 
-  if (mode === "2" || mode === "3") {
-    dueDate = prompt("Введи дату в формате ГГГГ-ММ-ДД:");
-    if (!dueDate) return;
-  }
 
   if (mode === "3") {
     dueTime = prompt("Введи время в формате ЧЧ:ММ:");
