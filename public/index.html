@@ -406,10 +406,19 @@ if (view === "in_work") {
 document.getElementById("vw1").onclick = async () => { view = "in_work"; await renderTasks(); };
 document.getElementById("vw2").onclick = async () => { view = "recorded"; await renderTasks(); };
     const tasks = await apiGetTasks();
-    if (!tasks.length) {
-      tasksEl.innerHTML = `<div class="small">Пока нет задач в работе.</div>`;
-      return;
-    }
+   if (!tasks.length) {
+  const emptyText = (view === "recorded")
+    ? "Пока нет записанных задач."
+    : "Пока нет задач в работе.";
+
+  const empty = document.createElement("div");
+  empty.className = "small";
+  empty.style.marginTop = "10px";
+  empty.textContent = emptyText;
+
+  tasksEl.appendChild(empty);
+  return;
+}
     tasks.forEach(t => tasksEl.appendChild(renderTaskRow(t)));
   }
 
