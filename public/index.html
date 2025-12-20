@@ -254,6 +254,37 @@ function renderCreateUI() {
       setTimeout(() => t.remove(), 250);
     }, 2200);
   }
+async function takeWithSchedule(taskId) {
+  const mode = prompt(
+    "Взять в работу:\n1 — без даты\n2 — с датой\n3 — с датой и временем\n\nВведи 1, 2 или 3:",
+    "1"
+  );
+
+  if (mode === null) return;
+
+  let dueDate = null;
+  let dueTime = null;
+
+  if (mode === "2" || mode === "3") {
+    dueDate = prompt("Введи дату в формате ГГГГ-ММ-ДД:");
+    if (!dueDate) return;
+  }
+
+  if (mode === "3") {
+    dueTime = prompt("Введи время в формате ЧЧ:ММ:");
+    if (!dueTime) return;
+  }
+
+  await fetch(`/api/tasks/${taskId}/take`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, dueDate, dueTime })
+  });
+
+  toast("В работе.");
+  view = "in_work";
+  await renderTasks();
+}
 
   async function apiGetTasks() {
   const r = await fetch(`/api/tasks?userId=${encodeURIComponent(userId)}&status=${encodeURIComponent(view)}`);
