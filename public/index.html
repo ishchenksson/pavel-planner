@@ -29,6 +29,33 @@
       <div id="createBox" style="margin-top:12px;"></div>
       <div class="small" id="info"></div>
       <div id="tasks" style="margin-top:12px;"></div>
+      <div id="takeOverlay" style="display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:100%;max-width:420px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.18);padding:14px;">
+    <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Взять в работу</div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button id="m1" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#d7f3e6;color:#0f4a2d;">Без даты</button>
+      <button id="m2" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#eef7ff;">С датой</button>
+      <button id="m3" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#eef7ff;">Дата+время</button>
+    </div>
+
+    <div id="dateWrap" style="display:none;margin-top:8px;">
+      <div style="font-size:12px;opacity:.75;margin-bottom:6px;">Дата</div>
+      <input id="dueDate" type="date" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,0,0,0.12);" />
+    </div>
+
+    <div id="timeWrap" style="display:none;margin-top:10px;">
+      <div style="font-size:12px;opacity:.75;margin-bottom:6px;">Время</div>
+      <input id="dueTime" type="time" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(0,0,0,0.12);" />
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="cancelTake" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#f3f6fb;">Отмена</button>
+      <button id="okTake" style="flex:1;border:0;border-radius:14px;padding:10px 12px;font-weight:800;background:#d7f3e6;color:#0f4a2d;">Готово</button>
+    </div>
+  </div>
+</div>
+
     </div>
   </div>
   <script>
@@ -40,6 +67,74 @@
 
   let userId = null;
   let view = "in_work"; // in_work | recorded
+let takeTaskId = null;
+let takeMode = "1"; // 1=без даты, 2=дата, 3=дата+время
+
+const takeOverlay = document.getElementById("takeOverlay");
+const m1 = document.getElementById("m1");
+const m2 = document.getElementById("m2");
+const m3 = document.getElementById("m3");
+const dateWrap = document.getElementById("dateWrap");
+const timeWrap = document.getElementById("timeWrap");
+const dueDateEl = document.getElementById("dueDate");
+const dueTimeEl = document.getElementById("dueTime");
+const cancelTake = document.getElementById("cancelTake");
+const okTake = document.getElementById("okTake");
+
+function setTakeMode(mode) {
+  takeMode = mode;
+  m1.style.background = (mode === "1") ? "#d7f3e6" : "#eef7ff";
+  m2.style.background = (mode === "2") ? "#d7f3e6" : "#eef7ff";
+  m3.style.background = (mode === "3") ? "#d7f3e6" : "#eef7ff";
+  dateWrap.style.display = (mode === "2" || mode === "3") ? "block" : "none";
+  timeWrap.style.display = (mode === "3") ? "block" : "none";
+}
+
+function openTakeOverlay(taskId) {
+  takeTaskId = taskId;
+  dueDateEl.value = "";
+  dueTimeEl.value = "";
+  setTakeMode("1");
+  takeOverlay.style.display = "flex";
+}
+
+function closeTakeOverlay() {
+  takeOverlay.style.display = "none";
+  takeTaskId = null;
+}
+
+m1.onclick = () => setTakeMode("1");
+m2.onclick = () => setTakeMode("2");
+m3.onclick = () => setTakeMode("3");
+
+cancelTake.onclick = () => closeTakeOverlay();
+
+okTake.onclick = async () => {
+  if (!takeTaskId) return;
+
+  let dueDate = null;
+  let dueTime = null;
+
+  if (takeMode === "2" || takeMode === "3") {
+    dueDate = dueDateEl.value || null;
+    if (!dueDate) return; // без даты не выпускаем
+  }
+  if (takeMode === "3") {
+    dueTime = dueTimeEl.value || null;
+    if (!dueTime) return; // без времени не выпускаем
+  }
+
+  await fetch(`/api/tasks/${takeTaskId}/take`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, dueDate, dueTime })
+  });
+
+  closeTakeOverlay();
+  toast("В работе.");
+  view = "in_work";
+  await renderTasks();
+};
 
   const praise = [
   "Чётко.",
@@ -192,17 +287,13 @@ function renderCreateUI() {
   });
 
   createBox.querySelector("#takeTask").addEventListener("click", async () => {
-    const id = draft._lastCreatedId;
-    if (!id) { show("Сначала нажми «Сохранить (записать)»."); return; }
-    await fetch(`/api/tasks/${id}/take`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, dueDate: null, dueTime: null })
-    });
-    toast("В работе.");
-    view = "in_work";
-    await renderTasks();
-  });
+  const id = draft._lastCreatedId;
+  if (!id) {
+    show("Сначала нажми «Сохранить (записать)».");
+    return;
+  }
+  openTakeOverlay(id);
+});
 }
 
   function confettiLite() {
@@ -407,8 +498,8 @@ if (view === "in_work") {
   right.style.background = "#d7f3e6";
   right.style.color = "#0f4a2d";
 
- right.onclick = async () => {
-  await takeWithSchedule(t.id);
+ right.onclick = () => {
+  openTakeOverlay(t.id);
 };
 }
 
