@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js"
   },
-  "dependencies": {
-    "express": "^4.19.2"
-  }
+ "dependencies": {
+  "express": "^4.19.2",
+  "luxon": "^3.5.0",
+  "node-telegram-bot-api": "^0.66.0"
+}
 }
