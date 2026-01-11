@@ -94,6 +94,58 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
+// утреннее сообщение со списком задач (09:00 МСК)
+const morningSent = new Set();
+
+setInterval(async () => {
+  if (!bot) return;
+
+  const now = getNowMoscow();
+  const hhmm = now.toFormat("HH:mm");
+
+  // отправляем ровно в 09:00
+  if (hhmm !== "09:00") return;
+
+  for (const userId of Object.keys(db)) {
+    const chatId = chats[userId];
+    if (!chatId) continue;
+
+    const key = `${userId}:${now.toISODate()}`;
+    if (morningSent.has(key)) continue;
+
+    morningSent.add(key);
+
+    const tasks = (db[userId] || []).filter(t => t.status === "in_work");
+
+    if (!tasks.length) {
+      bot.sendMessage(chatId, "Доброе утро ☀️\nСегодня задач в работе нет.");
+      continue;
+    }
+
+    // сортировка: просроченные сверху, затем по времени
+    const today = now.toISODate();
+
+    tasks.sort((a, b) => {
+      if (a.dueDate && a.dueDate < today && (!b.dueDate || b.dueDate >= today)) return -1;
+      if (b.dueDate && b.dueDate < today && (!a.dueDate || a.dueDate >= today)) return 1;
+      return (a.dueTime || "").localeCompare(b.dueTime || "");
+    });
+
+    let text = "Доброе утро ☀️\nВот задачи в работе на сегодня:\n\n";
+    for (const t of tasks) {
+      if (t.dueDate && t.dueTime) {
+        text += `⏰ ${t.dueTime} — ${t.text}\n`;
+      } else if (t.dueDate) {
+        text += `📅 ${t.text}\n`;
+      } else {
+        text += `• ${t.text}\n`;
+      }
+    }
+
+    bot.sendMessage(chatId, text.trim());
+  }
+}, 60 * 1000);
+
 
 // Получить задачи "в работе"
 app.get("/api/tasks", (req, res) => {
