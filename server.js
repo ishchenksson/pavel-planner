@@ -102,9 +102,11 @@ setInterval(async () => {
 
   const now = getNowMoscow();
   const hhmm = now.toFormat("HH:mm");
-
+const minutesNow = now.hour * 60 + now.minute;
+const morningFrom = 9 * 60 + 0;   // 09:00
+const morningTo = 9 * 60 + 15;    // 09:15
   // отправляем ровно в 09:00
-  if (hhmm !== "09:00") return;
+if (minutesNow < morningFrom || minutesNow > morningTo) return;
 
   for (const userId of Object.keys(db)) {
     const chatId = chats[userId];
