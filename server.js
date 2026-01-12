@@ -30,7 +30,21 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "";
 // запускаем бота, если токен задан
 let bot = null;
 if (BOT_TOKEN) {
-  bot = new TelegramBot(BOT_TOKEN, { polling: true });
+  bot = new TelegramBot(BOT_TOKEN);
+  
+// webhook endpoint (Express будет принимать апдейты)
+app.post("/telegram/webhook", (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// установить webhook (PUBLIC_URL зададим на Render)
+const publicUrl = process.env.PUBLIC_URL || "";
+if (publicUrl) {
+  bot.setWebHook(`${publicUrl.replace(/\/$/, "")}/telegram/webhook`);
+} else {
+  console.log("PUBLIC_URL is empty. Webhook not set.");
+}
 
   bot.onText(/\/start/, (msg) => {
     const userId = String(msg.from.id);
